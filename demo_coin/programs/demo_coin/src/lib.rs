@@ -66,6 +66,50 @@ pub mod demo_coin {
 
 
 
+    #[derive(Accounts)]
+
+    pub struct IntializeMMintCtx<'info>{
+        #[account(
+            init,
+            payer=authority,
+            space=82,
+            mint::decimels=6,
+            mint::authority=authority
+        )]
+        pub mint:Account<'info,Mint>,
+
+
+        #[account(mut)]
+        pub authority:Signer<'info>,
+
+
+        pub rent:Sysvar<'info,Rent>
+        pub system_program:Program<'info,System>,
+        pub token_program :Program<'info,Token>,
+
+
+    }
+
+
+    #[derive(Accounts)]
+    pub struct MintTokenCtx<'info>{
+
+
+     pub mint:Account<'info,Mint>,
+
+     pub recipient: Account<'info, TokenAccount>,
+
+    pub authority: AccountInfo<'info>,
+
+    pub token_program: Program<'info, Token>,
+
+        
+    }
+
+
+
+
+
 
 
 
