@@ -1,16 +1,76 @@
 use anchor_lang::prelude::*;
+// to import all the library of anchor 
 
-declare_id!("6pnANYUXptMb5fj2uVyWiLCpfKFYBmzCjRGETD3usyC");
+use anchor_spl::token::{ self,Mint,TokenAccount,Token,MintTo, IntializeMint};
+// Helper module from Anchor to interact with Solana Program Library's SPL Token Program 
+
+declare_id!("Fg6PaFpoGXkYsidMpWxTWqgGUkJdftFb3EMabA7xh1gE");
+//It is unique solana program address on chain
 
 #[program]
 pub mod demo_coin {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
-        Ok(())
-    }
-}
+    pub fn intialize_mint(
+        ctx:Context<IntilaizeMintCtx>,
+        decimels:u8,
+    )->Result<()>{
+        let cpi_accounts = IntilaizeMint{
+            mint:ctx.accounts.mint.to_account_info(),
+            rent:ctx.accounts.rent.to_account_info(),
 
-#[derive(Accounts)]
-pub struct Initialize {}
+
+            let cpi_program =ctx.accounts.token_program.to_account_info();
+
+
+            token::intialize_mint(
+                CpiContext::new(cpi_program,cpi_accounts),
+                decimels,
+                ctx.accounts.authority.key,
+                Some(ctx.accounts.authority.key),
+            )?;
+            Ok(())
+        }
+
+
+
+
+        pub fn mint_tokens(
+            ctx:Context<MintTokenCtx>,
+            amount:u64,
+        )->Result<()>{
+            let cpi_accounts =MintoTo{
+                mint:ctx.accounts.mint.to_account_info(),
+                to:ctx.accounts.recipent.to_account_info(),
+                authority:ctx.accounts.authority.to_account_info(),
+            };
+
+
+
+
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+
+            token::mint_to(
+                cpiContext::new(cpi_program,cpi_accounts),
+                amount,
+            )?;
+
+            Ok(())
+        }
+
+    })
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
