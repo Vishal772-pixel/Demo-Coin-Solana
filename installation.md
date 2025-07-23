@@ -1,3 +1,6 @@
+For Linux 
+
+
 1.Install Solana CLI
 
 sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
@@ -10,6 +13,10 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 3.Install Anchor
 
 cargo install --git https://github.com/coral-xyz/anchor anchor-cli --locked
+Get anchor version 
+anchor --version
+It should show something like this 
+anchor-cli x.y.z
 
 
 4. Starting with anchor project 
@@ -21,3 +28,26 @@ cd demo_coin
 
 anchor build
 anchor deploy 
+
+
+
+Run this command to enable rust in current shell
+source $HOME/.cargo/env
+
+Then test
+cargo --version
+
+it should show something like this
+cargo 1.88.0 (version may vary)
+
+
+also if getting any error regarding installation of link cc or something run below command
+sudo apt update && sudo apt install build-essential pkg-config libssl-dev -y
+and after running the above command rerun the below command to install anchor nicely with almost ( 714 dependecies)
+cargo install --git https://github.com/coral-xyz/anchor anchor-cli --locked
+
+check anchor version by this 
+anchor --version
+
+
+
