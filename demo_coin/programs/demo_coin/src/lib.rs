@@ -1,120 +1,130 @@
 use anchor_lang::prelude::*;
-// to import all the library of anchor 
+use anchor_spl::token::{self, Mint, Token, TokenAccount, MintTo, Burn, Transfer};
 
-use anchor_spl::token::{ self,Mint,TokenAccount,Token,MintTo, IntializeMint};
-// Helper module from Anchor to interact with Solana Program Library's SPL Token Program 
-
-declare_id!("Fg6PaFpoGXkYsidMpWxTWqgGUkJdftFb3EMabA7xh1gE");
-//It is unique solana program address on chain
+declare_id!("Fg6PaFpoGXkYsidMpWxqSW3X3jv4efyV9Ma1ZX7kM7Qp");
 
 #[program]
 pub mod demo_coin {
     use super::*;
 
-    pub fn intialize_mint(
-        ctx:Context<IntilaizeMintCtx>,
-        decimels:u8,
-    )->Result<()>{
-        let cpi_accounts = IntilaizeMint{
-            mint:ctx.accounts.mint.to_account_info(),
-            rent:ctx.accounts.rent.to_account_info(),
+    pub fn initialize_mint(
+        ctx: Context<InitializeMintCtx>,
+        amount: u64,
+        decimals: u8,
+    ) -> Result<()> {
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::InitializeMint {
+                mint: ctx.accounts.mint.to_account_info(),
+                rent: ctx.accounts.rent.to_account_info(),
+            },
+        );
 
+        token::initialize_mint(cpi_ctx, decimals, ctx.accounts.authority.key, None)?;
 
-            let cpi_program =ctx.accounts.token_program.to_account_info();
+        let mint_to_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            MintTo {
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.staking_wallet.to_account_info(),
+                authority: ctx.accounts.authority.to_account_info(),
+            },
+        );
 
+        token::mint_to(mint_to_ctx, amount)?;
 
-            token::intialize_mint(
-                CpiContext::new(cpi_program,cpi_accounts),
-                decimels,
-                ctx.accounts.authority.key,
-                Some(ctx.accounts.authority.key),
-            )?;
-            Ok(())
-        }
-
-
-
-
-        pub fn mint_tokens(
-            ctx:Context<MintTokenCtx>,
-            amount:u64,
-        )->Result<()>{
-            let cpi_accounts =MintoTo{
-                mint:ctx.accounts.mint.to_account_info(),
-                to:ctx.accounts.recipent.to_account_info(),
-                authority:ctx.accounts.authority.to_account_info(),
-            };
-
-
-
-
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-
-            token::mint_to(
-                cpiContext::new(cpi_program,cpi_accounts),
-                amount,
-            )?;
-
-            Ok(())
-        }
-
-    })
-    
-
-
-
-
-
-
-    #[derive(Accounts)]
-
-    pub struct IntializeMMintCtx<'info>{
-        #[account(
-            init,
-            payer=authority,
-            space=82,
-            mint::decimels=6,
-            mint::authority=authority
-        )]
-        pub mint:Account<'info,Mint>,
-
-
-        #[account(mut)]
-        pub authority:Signer<'info>,
-
-
-        pub rent:Sysvar<'info,Rent>
-        pub system_program:Program<'info,System>,
-        pub token_program :Program<'info,Token>,
-
-
+        Ok(())
     }
 
+    pub fn burn_tokens(ctx: Context<BurnCtx>, amount: u64) -> Result<()> {
+        let burn_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Burn {
+                mint: ctx.accounts.mint.to_account_info(),
+                from: ctx.accounts.from.to_account_info(),
+                authority: ctx.accounts.authority.to_account_info(),
+            },
+        );
 
-    #[derive(Accounts)]
-    pub struct MintTokenCtx<'info>{
+        token::burn(burn_ctx, amount)?;
+        Ok(())
+    }
+
+    pub fn transfer_with_fee(ctx: Context<TransferWithFee>, amount: u64) -> Result<()> {
+        let fee = (amount as u128 * 3 / 10_000) as u64;
+        let actual = amount.checked_sub(fee).unwrap_or(0);
+
+        // Main transfer
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.from.to_account_info(),
+                    to: ctx.accounts.to.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
+                },
+            ),
+            actual,
+        )?;
+
+        // Fee transfer
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.from.to_account_info(),
+                    to: ctx.accounts.staking_wallet.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
+                },
+            ),
+            fee,
+        )?;
+
+        Ok(())
+    }
+}
 
 
-     pub mint:Account<'info,Mint>,
 
-     pub recipient: Account<'info, TokenAccount>,
+#[derive(Accounts)]
+pub struct InitializeMintCtx<'info> {
+    #[account(init, payer = authority, mint::decimals = 9, mint::authority = authority)]
+    pub mint: Account<'info, Mint>,
 
-    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub staking_wallet: Account<'info, TokenAccount>,
 
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+}
 
-        
-    }
+#[derive(Accounts)]
+pub struct BurnCtx<'info> {
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
 
+    #[account(mut)]
+    pub from: Account<'info, TokenAccount>,
 
+    pub authority: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
 
+#[derive(Accounts)]
+pub struct TransferWithFee<'info> {
+    #[account(mut)]
+    pub from: Account<'info, TokenAccount>,
 
+    #[account(mut)]
+    pub to: Account<'info, TokenAccount>,
 
+    #[account(mut)]
+    pub staking_wallet: Account<'info, TokenAccount>,
 
-
-
-
-
-
-
+    pub authority: Signer<'info>,
+    pub token_program: Program<'info, Token>,
 }
